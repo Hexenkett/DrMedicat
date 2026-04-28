@@ -233,15 +233,18 @@ async def registrar(ctx):
             and msg.channel == ctx.channel
             and not msg.content.startswith("!")
         )
+    while True:    
+        await ctx.send("💊 ¿Cuál es el nombre del medicamento?")
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=60)
+            nombre = msg.content.strip()
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
+            return
+        if nombre:
+            break
+        await ctx.send("❌ El nombre no puede estar vacío.")
     
-    await ctx.send("💊 ¿Cuál es el nombre del medicamento?")
-    try:
-        msg = await bot.wait_for("message", check=check, timeout=60)
-        nombre = msg.content.strip()
-    except asyncio.TimeoutError:
-        await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
-        return
-
     while True:
         await ctx.send("💉 ¿Cuál es la dosis (por ejemplo 500mg)?")
         try:
