@@ -247,6 +247,16 @@ async def registrar(ctx):
             continue
         try:
             numero = float(partes[1].replace(",", "."))
+            if numero <= 0:
+                await ctx.send("❌ La frecuencia debe ser mayor que 0.")
+                continue
+            if unidad in ["minuto", "minutos"] and numero < 15:
+                await ctx.send("❌ La frecuencia mínima es cada 15 minutos.")
+                continue
+            if unidad in ["hora", "horas"] and numero > 24:
+                await ctx.send("❌ La frecuencia máxima es cada 24 horas.")
+                continue
+            
             unidad = partes[2]
             if unidad not in ["minuto", "minutos", "hora", "horas"]:
                 await ctx.send("❌ Unidad incorrecta. Usa 'minutos' o 'horas'.")
