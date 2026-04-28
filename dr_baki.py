@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import os
 import sqlite3
+import asyncio
 from datetime import datetime, timedelta
 from functools import partial
 from rams import (
@@ -226,27 +227,49 @@ async def info(ctx):
 
 @bot.command()
 async def registrar(ctx):
-    def check(msg): return msg.author == ctx.author and msg.channel == ctx.channel
-
+    def check(msg): 
+        return (
+            msg.author == ctx.author 
+            and msg.channel == ctx.channel
+            and not msg.content.startswith("!")
+        )
+    
     await ctx.send("💊 ¿Cuál es el nombre del medicamento?")
-    nombre = (await bot.wait_for("message", check=check)).content.strip()
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=60)
+        nombre = msg.content.strip()
+    except asyncio.TimeoutError:
+        await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
+        return
 
     while True:
         await ctx.send("💉 ¿Cuál es la dosis (por ejemplo 500mg)?")
-        dosis = (await bot.wait_for("message", check=check)).content.strip()
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=60)
+            dosis = msg.content.strip()
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
+            return
         if dosis:
             break
         await ctx.send("❌ La dosis no puede estar vacía.")
 
     while True:
         await ctx.send("⏱ ¿Con qué frecuencia se toma? (ej: 'cada 8 horas' o 'cada 30 minutos')")
-        frecuencia_texto = (await bot.wait_for("message", check=check)).content.strip().lower()
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=60)
+            frecuencia_texto = msg.content.strip().lower()
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
+            return
+
         partes = frecuencia_texto.split()
         if len(partes) != 3 or partes[0] != "cada":
             await ctx.send("❌ Formato incorrecto. Usa 'cada X minutos' o 'cada X horas'.")
             continue
         try:
             numero = float(partes[1].replace(",", "."))
+            unidad = partes[2]
             if numero <= 0:
                 await ctx.send("❌ La frecuencia debe ser mayor que 0.")
                 continue
@@ -256,8 +279,6 @@ async def registrar(ctx):
             if unidad in ["hora", "horas"] and numero > 24:
                 await ctx.send("❌ La frecuencia máxima es cada 24 horas.")
                 continue
-            
-            unidad = partes[2]
             if unidad not in ["minuto", "minutos", "hora", "horas"]:
                 await ctx.send("❌ Unidad incorrecta. Usa 'minutos' o 'horas'.")
                 continue
