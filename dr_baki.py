@@ -213,6 +213,7 @@ async def ayuda(ctx):
 - `!eliminar`         → Eliminar un medicamento
 - `!adherencia`       → Ver tu resumen de adherencia
 - `!ayuda`            → Mostrar esta lista
+- `!proximatoma`      → Revisar cuándo es la próxima toma 
 """
     await ctx.send(mensaje)
 
@@ -326,7 +327,7 @@ async def mismedicamentos(ctx):
     for i, med in enumerate(meds, start=1):
         mensaje += (
             f"{i}. **{med['nombre']}** — {med['dosis']} — "
-            f"cada {med['frecuencia_texto']} — desde {med['fecha_inicio']}\n"
+            f" {med['frecuencia_texto']} — desde {med['fecha_inicio']}\n"
         )
     await ctx.send(mensaje)
 
@@ -383,6 +384,40 @@ async def eliminar(ctx):
     view.add_item(select)
 
     await ctx.send("**Selecciona el medicamento que quieres eliminar:**", view=view)
+
+# ══════════════════════════════════════════════════════
+#   VER PRÓXIMA TOMA
+# ══════════════════════════════════════════════════════
+
+@bot.command()
+async def proximatoma(ctx):
+    user_id = str(ctx.author.id)
+    meds = obtener_medicamentos(user_id)
+
+    if not meds:
+        await ctx.send("📋 No tienes medicamentos registrados.")
+        return
+
+    ahora = datetime.now()
+    mensaje = "⏰ **Próximas tomas:**\n"
+
+    for med in meds:
+        ultima = obtener_ultima_toma_programada(med["id"])
+        if ultima:
+            proxima = ultima + timedelta(hours=med["frecuencia_horas"])
+        else:
+            proxima = datetime.strptime(med["fecha_inicio"], "%d/%m/%Y %H:%M")
+
+        diferencia = proxima - ahora
+
+        if diferencia.total_seconds() <= 0:
+            mensaje += f"💊 **{med['nombre']}** — toca ahora\n"
+        else:
+            horas = int(diferencia.total_seconds() // 3600)
+            minutos = int((diferencia.total_seconds() % 3600) // 60)
+            mensaje += f"💊 **{med['nombre']}** — en {horas}h {minutos}min\n"
+
+    await ctx.send(mensaje)
 
 
 # ══════════════════════════════════════════════════════

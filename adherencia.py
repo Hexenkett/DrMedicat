@@ -14,11 +14,13 @@ Informes:
  
 Compatible con SQLite (dr_baki.py).
 """
- 
+from dotenv import load_dotenv
+import os
 from datetime import datetime, timedelta
 from collections import Counter
 from typing import Optional
-from openai import OpenAI 
+from openai import OpenAI
+load_dotenv() 
 
 # ------------------   CONFIGURACIÓN CLÍNICA ------------------ 
 
@@ -554,8 +556,7 @@ def generar_informes_semanales(
 #  INFORME FARMACÉUTICO CON LLM (OpenAI)
 # ══════════════════════════════════════════════════════
 
-OPENAI_API_KEY = "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"
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 def generar_informe_farmaceutico_llm(
     historial: list[dict],
     rams: list[dict],
@@ -622,10 +623,11 @@ REACCIONES ADVERSAS REPORTADAS (RAMs):
 
 Con los siguientes datos del paciente, redacta un informe clínico profesional en español.
 El informe debe incluir:
-1. Resumen ejecutivo del estado de adherencia
-2. Análisis clínico de los datos (relaciona adherencia, patrones y RAMs si las hay)
-3. Señales de alerta si las hay
-4. Recomendaciones de intervención concretas y personalizadas
+1. Resumen ejecutivo del estado de adherencia — evalúa el nivel de cumplimiento terapéutico según los umbrales OMS (óptima ≥95%, aceptable ≥80%, baja <80%, crítica <50%), contextualiza el MPR estricto frente a la adherencia global e interpreta el significado clínico de la diferencia entre ambos.
+2. Análisis clínico de los datos — interpreta los patrones temporales de olvido (franjas horarias y días problemáticos), evalúa la evolución de las rachas de incumplimiento y relaciona estos patrones con las RAMs reportadas para identificar posibles causas de falta de adherencia.
+3. Análisis de interacciones farmacológicas entre los medicamentos del paciente — evalúa cualquier interacción farmacodinámica o farmacocinética clínicamente relevante, y relaciona las interacciones detectadas con las RAMs reportadas si existe relación
+4. Señales de alerta clínica — identifica situaciones que requieran intervención prioritaria, incluyendo adherencia crítica, rachas prolongadas de olvido, RAMs graves o potencialmente graves, e interacciones de riesgo elevado.
+5. Recomendaciones de intervención — propón acciones concretas y personalizadas basadas en el perfil del paciente: estrategias para mejorar la adherencia según el patrón de olvidos detectado, manejo de las RAMs reportadas, y seguimiento recomendado.
 
 El tono debe ser profesional, clínico y conciso. Sin emojis. Máximo 400 palabras.
 No incluyas los datos en bruto — redacta un informe narrativo fluido.
