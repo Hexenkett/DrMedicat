@@ -428,6 +428,8 @@ async def proximatoma(ctx):
         else:
             proxima = datetime.strptime(med["fecha_inicio"], "%d/%m/%Y %H:%M")
 
+        print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}, diferencia: {diferencia}")
+
         diferencia = proxima - ahora
 
         if diferencia.total_seconds() <= 0:
@@ -439,7 +441,7 @@ async def proximatoma(ctx):
 
     await ctx.send(mensaje)
 
-    print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}, diferencia: {diferencia}")
+    
 
 
 # ══════════════════════════════════════════════════════
