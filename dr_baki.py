@@ -405,6 +405,7 @@ async def eliminar(ctx):
 
     await ctx.send("**Selecciona el medicamento que quieres eliminar:**", view=view)
 
+
 # ══════════════════════════════════════════════════════
 #   VER PRÓXIMA TOMA
 # ══════════════════════════════════════════════════════
@@ -422,27 +423,21 @@ async def proximatoma(ctx):
     mensaje = "⏰ **Próximas tomas:**\n"
 
     for med in meds:
-        print(f"DEBUG med_id: {med['id']}, fecha_inicio: {med['fecha_inicio']}")
         ultima = obtener_ultima_toma_programada(med["id"])
         if ultima:
             proxima = ultima + timedelta(hours=med["frecuencia_horas"])
         else:
             proxima = datetime.strptime(med["fecha_inicio"], "%d/%m/%Y %H:%M")
 
-        print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}")
+        while proxima <= ahora:
+            proxima += timedelta(hours=med["frecuencia_horas"])
 
         diferencia = proxima - ahora
-
-        if diferencia.total_seconds() <= 0:
-            mensaje += f"💊 **{med['nombre']}** — toca ahora\n"
-        else:
-            horas = int(diferencia.total_seconds() // 3600)
-            minutos = int((diferencia.total_seconds() % 3600) // 60)
-            mensaje += f"💊 **{med['nombre']}** — en {horas}h {minutos}min\n"
+        horas = int(diferencia.total_seconds() // 3600)
+        minutos = int((diferencia.total_seconds() % 3600) // 60)
+        mensaje += f"💊 **{med['nombre']}** — en {horas}h {minutos}min\n"
 
     await ctx.send(mensaje)
-
-    
 
 
 # ══════════════════════════════════════════════════════
