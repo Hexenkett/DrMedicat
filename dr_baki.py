@@ -439,6 +439,8 @@ async def proximatoma(ctx):
 
     await ctx.send(mensaje)
 
+    print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}, diferencia: {diferencia}")
+
 
 # ══════════════════════════════════════════════════════
 #  INFORME DE ADHERENCIA (paciente)
