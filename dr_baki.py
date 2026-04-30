@@ -291,7 +291,27 @@ async def registrar(ctx):
             await ctx.send("❌ Número de frecuencia inválido.")
             continue
 
-    inicio_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    while True:
+        await ctx.send("🕐 ¿A qué hora quieres recibir el primer recordatorio? (formato HH:MM, ej: 22:00)")
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=60)
+            hora_str = msg.content.strip()
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Tiempo agotado. Usa !registrar para empezar de nuevo.")
+            return
+        try:
+            hora_inicio = datetime.strptime(hora_str, "%H:%M")
+            inicio_str = datetime.now().replace(
+                hour=hora_inicio.hour,
+                minute=hora_inicio.minute,
+                second=0,
+                microsecond=0
+            ).strftime("%d/%m/%Y %H:%M")
+            break
+        except ValueError:
+            await ctx.send("❌ Formato incorrecto. Usa HH:MM, por ejemplo 22:00.")
+            continue
+        
     frecuencia_horas = numero / 60 if unidad in ["minuto", "minutos"] else numero
     user_id = str(ctx.author.id)
 
