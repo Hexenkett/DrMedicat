@@ -429,7 +429,7 @@ async def proximatoma(ctx):
         else:
             proxima = datetime.strptime(med["fecha_inicio"], "%d/%m/%Y %H:%M")
 
-        print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}, diferencia: {diferencia}")
+        print(f"DEBUG ultima: {ultima}, proxima: {proxima}, ahora: {ahora}")
 
         diferencia = proxima - ahora
 
