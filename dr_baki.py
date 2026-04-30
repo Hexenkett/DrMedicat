@@ -422,6 +422,7 @@ async def proximatoma(ctx):
     mensaje = "⏰ **Próximas tomas:**\n"
 
     for med in meds:
+        print(f"DEBUG med_id: {med['id']}, fecha_inicio: {med['fecha_inicio']}")
         ultima = obtener_ultima_toma_programada(med["id"])
         if ultima:
             proxima = ultima + timedelta(hours=med["frecuencia_horas"])
