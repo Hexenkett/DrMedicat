@@ -593,6 +593,11 @@ async def revisar_encuestas_rams():
         except Exception as e:
             print(f"❌ Error enviando encuesta RAM a {med['usuario_id']}: {e}")
 
+@revisar_encuestas_rams.before_loop
+async def before_encuestas_rams():
+    await bot.wait_until_ready()
+    import asyncio
+    await asyncio.sleep(7 * 24 * 3600)
 
 # ══════════════════════════════════════════════════════
 #  TEST DE ENCUESTA DE RAMs - COMANDO PARA PROBAR RAMs
