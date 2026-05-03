@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import os
+os.environ['TZ'] = 'Europe/Madrid'
 import sqlite3
 import asyncio
 from datetime import datetime, timedelta
