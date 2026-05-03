@@ -1087,12 +1087,15 @@ async def testinforme(ctx):
 
 @bot.command()
 async def limpiardb(ctx):
-    """Comando temporal para limpiar tomas antiguas."""
     user_id = str(ctx.author.id)
     with get_conn() as conn:
+        tomas = conn.execute("SELECT COUNT(*) FROM tomas WHERE usuario_id = ?", (user_id,)).fetchone()[0]
+        print(f"DEBUG limpiardb - tomas antes: {tomas}")
         conn.execute("DELETE FROM tomas WHERE usuario_id = ?", (user_id,))
         conn.execute("DELETE FROM rams WHERE usuario_id = ?", (user_id,))
         conn.execute("DELETE FROM ultima_encuesta_ram WHERE usuario_id = ?", (user_id,))
+        tomas_after = conn.execute("SELECT COUNT(*) FROM tomas WHERE usuario_id = ?", (user_id,)).fetchone()[0]
+        print(f"DEBUG limpiardb - tomas después: {tomas_after}")
     await ctx.send("✅ Historial limpiado correctamente.")
 
 
