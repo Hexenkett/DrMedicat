@@ -492,6 +492,8 @@ async def revisar_recordatorios():
             proxima = ultima_programada + timedelta(hours=frecuencia_horas)
         else:
             proxima = inicio
+        
+        print(f"DEBUG loop - med: {med['nombre']}, ultima: {ultima_programada}, proxima: {proxima}, ahora: {ahora}, diff: {(ahora - proxima).total_seconds()}")
 
         if proxima <= ahora and (ahora - proxima).total_seconds() < 300:
             try:
