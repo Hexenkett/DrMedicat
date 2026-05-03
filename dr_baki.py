@@ -214,7 +214,8 @@ async def ayuda(ctx):
 - `!eliminar`         → Eliminar un medicamento
 - `!adherencia`       → Ver tu resumen de adherencia
 - `!ayuda`            → Mostrar esta lista
-- `!proximatoma`      → Revisar cuándo es la próxima toma 
+- `!proximatoma`      → Revisar cuándo es la próxima toma
+- `!informe`          → Generar tu informe farmacéutico al instante 
 """
     await ctx.send(mensaje)
 
@@ -1089,5 +1090,59 @@ async def testinforme(ctx):
     
     await ctx.send("✅ Informe enviado por DM.")
 
+
+@bot.command()
+async def informe(ctx):
+    """Genera el informe farmacéutico al instante."""
+    from adherencia import generar_informe_farmaceutico_llm
+
+    user_id = str(ctx.author.id)
+    meds = obtener_medicamentos(user_id)
+
+    if not meds:
+        await ctx.send("📋 No tienes medicamentos registrados.")
+        return
+
+    historial = obtener_historial(user_id, dias=30)
+
+    if not historial:
+        await ctx.send("📊 No hay datos suficientes todavía. Sigue registrando tus tomas.")
+        return
+
+    with get_conn() as conn:
+        rams_registradas = obtener_rams_usuario(conn, user_id, dias=30)
+
+    nombres_meds = ", ".join([m["nombre"] for m in meds])
+
+    await ctx.send("⏳ Generando tu informe, un momento...")
+
+    informe = generar_informe_farmaceutico_llm(
+        historial,
+        rams=rams_registradas,
+        nombre_paciente=ctx.author.display_name,
+        discord_id=user_id,
+        nombre_medicamento=nombres_meds,
+        dias=30
+    )
+
+    seccion_rams = generar_seccion_rams_informe(rams_registradas)
+    informe_completo = informe + "\n" + seccion_rams
+
+    await ctx.author.send(
+        "📋 **Tu informe farmacéutico**\n"
+        "Puedes entregar este informe a tu farmacéutico o médico.\n"
+    )
+
+    if len(informe_completo) <= 1900:
+        await ctx.author.send(f"```\n{informe_completo}\n```")
+    else:
+        mitad = len(informe_completo) // 2
+        corte = informe_completo.rfind("\n", 0, mitad)
+        parte1 = informe_completo[:corte]
+        parte2 = informe_completo[corte:]
+        await ctx.author.send(f"```\n{parte1}\n```")
+        await ctx.author.send(f"```\n{parte2}\n```")
+
+    await ctx.send("✅ Informe enviado por DM.")
 
 bot.run(TOKEN)
