@@ -349,7 +349,7 @@ async def mismedicamentos(ctx):
     for i, med in enumerate(meds, start=1):
         mensaje += (
             f"{i}. **{med['nombre']}** — {med['dosis']} — "
-            f" {med['frecuencia_texto']} — desde {med['fecha_inicio']}\n"
+            f" {med['frecuencia_texto']}\n"
         )
     await ctx.send(mensaje)
 
