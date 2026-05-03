@@ -493,8 +493,6 @@ async def revisar_recordatorios():
             proxima = ultima_programada + timedelta(hours=frecuencia_horas)
         else:
             proxima = inicio
-        
-        print(f"DEBUG loop - med: {med['nombre']}, ultima: {ultima_programada}, proxima: {proxima}, ahora: {ahora}, diff: {(ahora - proxima).total_seconds()}")
 
         if proxima <= ahora and (ahora - proxima).total_seconds() < 300:
             try:
@@ -1085,14 +1083,6 @@ async def testinforme(ctx):
         await ctx.author.send(f"```\n{parte2}\n```")
     
     await ctx.send("✅ Informe enviado por DM.")
-
-@bot.command()
-async def limpiardb(ctx):
-    with get_conn() as conn:
-        conn.execute("DELETE FROM tomas")
-        conn.execute("DELETE FROM rams")
-        conn.execute("DELETE FROM ultima_encuesta_ram")
-    await ctx.send("✅ Base de datos limpiada completamente.")
 
 
 bot.run(TOKEN)
