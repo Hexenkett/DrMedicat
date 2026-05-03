@@ -1085,6 +1085,15 @@ async def testinforme(ctx):
     
     await ctx.send("✅ Informe enviado por DM.")
 
+@bot.command()
+async def limpiardb(ctx):
+    """Comando temporal para limpiar tomas antiguas."""
+    user_id = str(ctx.author.id)
+    with get_conn() as conn:
+        conn.execute("DELETE FROM tomas WHERE usuario_id = ?", (user_id,))
+        conn.execute("DELETE FROM rams WHERE usuario_id = ?", (user_id,))
+        conn.execute("DELETE FROM ultima_encuesta_ram WHERE usuario_id = ?", (user_id,))
+    await ctx.send("✅ Historial limpiado correctamente.")
 
 
 bot.run(TOKEN)
