@@ -578,16 +578,17 @@ async def revisar_encuestas_rams():
             usuario    = await bot.fetch_user(int(med["usuario_id"]))
             rams_lista = obtener_rams_medicamento(med["nombre"])
 
-            view = EncuestaRamView(
+            view = SeleccionRamView(
                 user_id=med["usuario_id"],
                 med=med,
                 rams_lista=rams_lista
             )
 
+            sintomas_texto = "\n".join([f"{i+1}. {r}" for i, r in enumerate(rams_lista)])
+
             await usuario.send(
                 f"💊 **Seguimiento semanal — {med['nombre']}**\n\n"
-                f"Han pasado 7 días. ¿Has notado alguno de estos síntomas "
-                f"desde que tomas **{med['nombre']}**?",
+                f"¿Has notado alguno de estos síntomas esta semana?\n\n{sintomas_texto}",
                 view=view
             )
 
@@ -614,14 +615,18 @@ async def testram(ctx):
         return
     med = meds[0]
     rams_lista = obtener_rams_medicamento(med["nombre"])
-    view = EncuestaRamView(
+    view = SeleccionRamView(
         user_id=user_id,
         med=med,
         rams_lista=rams_lista
     )
+
+    sintomas_texto = "\n".join([f"{i+1}. {r}" for i, r in enumerate(rams_lista)])
+
+
     await ctx.author.send(
         f"💊 **Seguimiento semanal — {med['nombre']}**\n\n"
-        f"¿Has notado alguno de estos síntomas desde que tomas **{med['nombre']}**?",
+        f"¿Has notado alguno de estos síntomas esta semana? \n\n{sintomas_texto}",
         view=view
     )
     await ctx.send("✅ Encuesta enviada por DM.")
@@ -751,66 +756,6 @@ class RecordatorioView(discord.ui.View):
 # ══════════════════════════════════════════════════════
 #  BOTONES — ENCUESTA RAM
 # ══════════════════════════════════════════════════════
-
-class EncuestaRamView(discord.ui.View):
-    """Primera pantalla: ¿Has notado alguna RAM? Sí / No"""
-    def __init__(self, user_id: str, med: dict, rams_lista: list):
-        super().__init__(timeout=86400)
-        self.user_id    = user_id
-        self.med        = med
-        self.rams_lista = rams_lista
-        self.respondido = False
-
-        si_btn = discord.ui.Button(label="⚠️ Sí, he notado algo", style=discord.ButtonStyle.danger)
-        si_btn.callback = self.callback_si
-        self.add_item(si_btn)
-
-        no_btn = discord.ui.Button(label="✅ No, todo bien", style=discord.ButtonStyle.success)
-        no_btn.callback = self.callback_no
-        self.add_item(no_btn)
-
-    def _verificar_usuario(self, interaction: discord.Interaction) -> bool:
-        return str(interaction.user.id) == str(self.user_id)
-
-    async def callback_no(self, interaction: discord.Interaction):
-        if not self._verificar_usuario(interaction):
-            await interaction.response.send_message("Esta encuesta no es para ti.", ephemeral=True)
-            return
-        if self.respondido:
-            return
-        self.respondido = True
-
-        with get_conn() as conn:
-            registrar_ram(conn, self.user_id, self.med["id"], tiene_ram=False)
-            actualizar_ultima_encuesta(conn, self.user_id, self.med["id"])
-
-        for child in self.children:
-            child.disabled = True
-        await interaction.response.edit_message(
-            content="✅ Perfecto, ¡gracias por responder! Seguimos de cerca tu tratamiento.",
-            view=self
-        )
-
-    async def callback_si(self, interaction: discord.Interaction):
-        if not self._verificar_usuario(interaction):
-            await interaction.response.send_message("Esta encuesta no es para ti.", ephemeral=True)
-            return
-        if self.respondido:
-            return
-        self.respondido = True
-        view = SeleccionRamView(
-            user_id=self.user_id,
-            med=self.med,
-            rams_lista=self.rams_lista
-        )
-
-        sintomas_texto = "\n".join([f"{i+1}. {r}" for i, r in enumerate(self.rams_lista)])
-
-        await interaction.response.edit_message(
-            content=f"Selecciona los síntomas que has notado:\n\n{sintomas_texto}",
-            view=view
-        )
-
 
 class SeleccionRamView(discord.ui.View):
     """Segunda pantalla: selección de síntomas del medicamento."""
