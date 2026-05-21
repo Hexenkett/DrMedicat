@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 # ══════════════════════════════════════════════════════
 #  DICCIONARIO DE RAMs POR MEDICAMENTO
 #  Fuente: fichas técnicas CIMA (AEMPS)
-#  Preparado para ser reemplazado por RAG
+#  Futuro RAG
 # ══════════════════════════════════════════════════════
 
 # RAMs genéricas — se usan si el medicamento no está en el diccionario
@@ -163,7 +163,7 @@ DICCIONARIO_RAMS = {
         "Mareos",
     ],
 
-        # ── ANTIDEPRESIVOS ISRS (inhibidores selectivos de la recaptación de serotonina) ──
+        # ── ANTIDEPRESIVOS ──
     "sertralina": [
         "Náuseas o vómitos (especialmente al inicio)",
         "Diarrea o molestias digestivas",
@@ -254,7 +254,7 @@ DICCIONARIO_RAMS = {
 
 
 # ══════════════════════════════════════════════════════
-#  FUNCIÓN PUENTE — AQUÍ ENTRARÁ EL RAG EN EL FUTURO
+#  FUNCIÓN PUENTE — RAG EN EL FUTURO
 # ══════════════════════════════════════════════════════
 
 def obtener_rams_medicamento(nombre_medicamento: str) -> list[str]:
