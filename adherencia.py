@@ -629,7 +629,7 @@ El informe debe incluir:
 4. Señales de alerta clínica — identifica situaciones que requieran intervención prioritaria, incluyendo adherencia crítica, rachas prolongadas de olvido, RAMs graves o potencialmente graves, e interacciones de riesgo elevado.
 5. Recomendaciones de intervención — propón acciones concretas y personalizadas basadas en el perfil del paciente: estrategias para mejorar la adherencia según el patrón de olvidos detectado, manejo de las RAMs reportadas, y seguimiento recomendado.
 
-El tono debe ser profesional, clínico y conciso. Sin emojis. Máximo 500 palabras.
+El tono debe ser profesional, clínico y conciso. Sin emojis. Máximo 400 palabras.
 No incluyas los datos en bruto — redacta un informe narrativo fluido.
 
 DATOS DEL PACIENTE:

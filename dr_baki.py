@@ -899,52 +899,63 @@ class DescripcionRamView(discord.ui.View):
 
 
 # ══════════════════════════════════════════════════════
+#  FUNCIÓN AUXILIAR PARA ENVIAR INFORMES POR DM
+# ══════════════════════════════════════════════════════
+
+async def enviar_informe_por_dm(usuario, informe_completo: str, titulo: str):
+    """Envía el informe dividido en chunks de máximo 1800 caracteres."""
+    await usuario.send(titulo)
+
+    chunks = []
+    texto = informe_completo
+    while len(texto) > 1800:
+        corte = texto.rfind("\n", 0, 1800)
+        if corte == -1:
+            corte = 1800
+        chunks.append(texto[:corte])
+        texto = texto[corte:]
+    chunks.append(texto)
+
+    for chunk in chunks:
+        if chunk.strip():
+            await usuario.send(f"```\n{chunk}\n```")
+
+
+# ══════════════════════════════════════════════════════
 #  INFORME FARMACÉUTICO MENSUAL
 # ══════════════════════════════════════════════════════
 
-@tasks.loop(hours=720)   # 720h = 30 días
+@tasks.loop(hours=720)
 async def enviar_informe_farmaceutico_mensual():
-    """
-    Cada 30 días envía al paciente el informe farmacéutico clínico completo
-    para que pueda entregarlo en su farmacia comunitaria.
-    Incluye adherencia de 30 días + RAMs reportadas.
-    """
     from adherencia import generar_informe_farmaceutico_llm
-    
+
     print("📋 Iniciando envío de informes farmacéuticos mensuales...")
-    
+
     with get_conn() as conn:
-        # Obtener todos los usuarios con al menos un medicamento activo
         usuarios = conn.execute("""
             SELECT DISTINCT usuario_id FROM medicamentos WHERE activo = 1
         """).fetchall()
-    
+
     for row in usuarios:
         user_id = row["usuario_id"]
-        
+
         try:
-            # Obtener datos del usuario
             meds = obtener_medicamentos(user_id)
             if not meds:
                 continue
-            
+
             historial = obtener_historial(user_id, dias=30)
             if not historial:
                 print(f"⏭️ Usuario {user_id} sin historial, se omite.")
                 continue
-            
-            # Obtener RAMs del último mes
+
             with get_conn() as conn:
                 rams_registradas = obtener_rams_usuario(conn, user_id, dias=30)
-            
-            # Obtener nombre del paciente
+
             usuario = await bot.fetch_user(int(user_id))
             nombre_paciente = usuario.display_name
-            
-            # Nombres de medicamentos activos
             nombres_meds = ", ".join([m["nombre"] for m in meds])
-            
-            # Generar informe principal
+
             informe = generar_informe_farmaceutico_llm(
                 historial,
                 rams=rams_registradas,
@@ -953,87 +964,31 @@ async def enviar_informe_farmaceutico_mensual():
                 nombre_medicamento=nombres_meds,
                 dias=30
             )
-            
-            # Añadir la sección de RAMs al final
+
             seccion_rams = generar_seccion_rams_informe(rams_registradas)
             informe_completo = informe + "\n" + seccion_rams
-            
-            # Enviar al paciente dentro de bloque de código para formato monoespaciado
-            await usuario.send(
+
+            await enviar_informe_por_dm(
+                usuario,
+                informe_completo,
                 "📋 **Tu informe farmacéutico mensual**\n"
                 "Puedes entregar este informe a tu farmacéutico para que pueda "
-                "hacer un seguimiento personalizado de tu tratamiento.\n"
+                "hacer un seguimiento personalizado de tu tratamiento."
             )
-            
-            # Discord limita mensajes a 2000 caracteres — si es muy largo, dividir
-            if len(informe_completo) <= 1900:
-                await usuario.send(f"```\n{informe_completo}\n```")
-            else:
-                # Dividir en dos partes
-                mitad = len(informe_completo) // 2
-                corte = informe_completo.rfind("\n", 0, mitad)
-                parte1 = informe_completo[:corte]
-                parte2 = informe_completo[corte:]
-                await usuario.send(f"```\n{parte1}\n```")
-                await usuario.send(f"```\n{parte2}\n```")
-            
+
             print(f"✅ Informe enviado a {user_id}")
-            
+
         except Exception as e:
             print(f"❌ Error enviando informe a {user_id}: {e}")
-    
+
     print("📋 Envío de informes mensuales completado.")
+
 
 @enviar_informe_farmaceutico_mensual.before_loop
 async def before_informe_mensual():
     await bot.wait_until_ready()
     import asyncio
     await asyncio.sleep(720 * 3600)
-
-@bot.command()
-async def testinforme(ctx):
-    """Comando temporal para probar el informe mensual al instante."""
-    from adherencia import generar_informe_farmaceutico_llm
-    
-    user_id = str(ctx.author.id)
-    meds = obtener_medicamentos(user_id)
-    
-    if not meds:
-        await ctx.send("No tienes medicamentos registrados.")
-        return
-    
-    historial = obtener_historial(user_id, dias=30)
-    
-    with get_conn() as conn:
-        rams_registradas = obtener_rams_usuario(conn, user_id, dias=30)
-    
-    nombres_meds = ", ".join([m["nombre"] for m in meds])
-    
-    informe = generar_informe_farmaceutico_llm(
-        historial,
-        rams=rams_registradas,
-        nombre_paciente=ctx.author.display_name,
-        discord_id=user_id,
-        nombre_medicamento=nombres_meds,
-        dias=30
-    )
-    
-    seccion_rams = generar_seccion_rams_informe(rams_registradas)
-    informe_completo = informe + "\n" + seccion_rams
-    
-    await ctx.author.send("📋 **Tu informe farmacéutico mensual (prueba)**")
-    
-    if len(informe_completo) <= 1900:
-        await ctx.author.send(f"```\n{informe_completo}\n```")
-    else:
-        mitad = len(informe_completo) // 2
-        corte = informe_completo.rfind("\n", 0, mitad)
-        parte1 = informe_completo[:corte]
-        parte2 = informe_completo[corte:]
-        await ctx.author.send(f"```\n{parte1}\n```")
-        await ctx.author.send(f"```\n{parte2}\n```")
-    
-    await ctx.send("✅ Informe enviado por DM.")
 
 
 @bot.command()
@@ -1073,20 +1028,12 @@ async def informe(ctx):
     seccion_rams = generar_seccion_rams_informe(rams_registradas)
     informe_completo = informe + "\n" + seccion_rams
 
-    await ctx.author.send(
+    await enviar_informe_por_dm(
+        ctx.author,
+        informe_completo,
         "📋 **Tu informe farmacéutico**\n"
-        "Puedes entregar este informe a tu farmacéutico o médico.\n"
+        "Puedes entregar este informe a tu farmacéutico o médico."
     )
-
-    if len(informe_completo) <= 1900:
-        await ctx.author.send(f"```\n{informe_completo}\n```")
-    else:
-        mitad = len(informe_completo) // 2
-        corte = informe_completo.rfind("\n", 0, mitad)
-        parte1 = informe_completo[:corte]
-        parte2 = informe_completo[corte:]
-        await ctx.author.send(f"```\n{parte1}\n```")
-        await ctx.author.send(f"```\n{parte2}\n```")
 
     await ctx.send("✅ Informe enviado por DM.")
 
