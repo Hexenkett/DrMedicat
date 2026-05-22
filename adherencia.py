@@ -612,8 +612,8 @@ RACHAS DE INCUMPLIMIENTO:
 
 PATRONES TEMPORALES:
 - Total olvidos: {patrones['total_olvidos']}
-- Hora problemática: {patrones['hora_problematica']}
-- Día problemático: {patrones['dia_problematico']}
+- Hora problemática: {f"{patrones['hora_problematica'][0]:02d}:00h ({patrones['hora_problematica'][1]} olvidos)" if patrones['hora_problematica'] else "No identificada"}
+- Día problemático: {f"{patrones['dia_problematico'][0].capitalize()} ({patrones['dia_problematico'][1]} olvidos)" if patrones['dia_problematico'] else "No identificado"}
 
 REACCIONES ADVERSAS REPORTADAS (RAMs):
 {rams_texto}
