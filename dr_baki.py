@@ -183,7 +183,7 @@ def obtener_ultima_toma_programada(med_id: int):
 # ══════════════════════════════════════════════════════
 
 VENTANA_TOLERANCIA_HORAS = 2
-
+VENTANA_MPR_HORAS = 0.5
 
 # ══════════════════════════════════════════════════════
 #  EVENTOS
@@ -213,9 +213,10 @@ async def ayuda(ctx):
 - `!mismedicamentos`  → Ver tus medicamentos
 - `!eliminar`         → Eliminar un medicamento
 - `!adherencia`       → Ver tu resumen de adherencia
-- `!ayuda`            → Mostrar esta lista
 - `!proximatoma`      → Revisar cuándo es la próxima toma
-- `!informe`          → Generar tu informe farmacéutico al instante 
+- `!tomado`           → Registrar una toma manualmente
+- `!informe`          → Generar tu informe farmacéutico al instante
+- `!ayuda`            → Mostrar esta lista 
 """
     await ctx.send(mensaje)
 
@@ -445,6 +446,128 @@ async def proximatoma(ctx):
 
     await ctx.send(mensaje)
 
+# ══════════════════════════════════════════════════════
+#   REGISTRAR TOMA FUERA DEL RECORDATORIO
+# ══════════════════════════════════════════════════════
+
+@bot.command()
+async def tomado(ctx):
+    """Registra manualmente una toma si no respondiste al recordatorio."""
+    user_id = str(ctx.author.id)
+    meds = obtener_medicamentos(user_id)
+
+    if not meds:
+        await ctx.send("📋 No tienes medicamentos registrados.")
+        return
+
+    ahora = datetime.now()
+
+    candidatos = []
+    for med in meds:
+        ultima = obtener_ultima_toma_programada(med["id"])
+        if not ultima:
+            continue
+
+        # Calcular próxima toma programada
+        proxima = ultima + timedelta(hours=med["frecuencia_horas"])
+        diff = abs((ahora - proxima).total_seconds()) / 3600
+
+        if diff <= VENTANA_TOLERANCIA_HORAS:
+            candidatos.append((med, proxima, diff))
+
+    if not candidatos:
+        await ctx.send("⏰ No hay tomas recientes que registrar — no hay ninguna toma dentro de la ventana de ±2 horas.")
+        return
+
+    if len(candidatos) == 1:
+        med, proxima, diff = candidatos[0]
+        retraso = (ahora - proxima).total_seconds() / 3600
+        if retraso <= VENTANA_MPR_HORAS:
+            estado = "tomada"
+        else:
+            estado = "tomada_con_retraso"
+
+        with get_conn() as conn:
+            toma = conn.execute(
+                """SELECT id FROM tomas WHERE med_id = ? AND estado = 'pendiente'
+                   ORDER BY hora_programada DESC LIMIT 1""",
+                (med["id"],)
+            ).fetchone()
+
+        if toma:
+            actualizar_estado_toma(toma["id"], estado, hora_real=ahora)
+        else:
+            registrar_toma(
+                med_id=med["id"],
+                usuario_id=user_id,
+                hora_programada=proxima,
+                hora_real=ahora,
+                estado=estado
+            )
+
+        await ctx.send(f"✅ Toma de **{med['nombre']}** registrada como **{estado}** a las {ahora.strftime('%H:%M')}.")
+        return
+
+    opciones = [
+        discord.SelectOption(
+            label=f"{med['nombre']} — {proxima.strftime('%H:%M')}",
+            value=str(i)
+        )
+        for i, (med, proxima, diff) in enumerate(candidatos)
+    ]
+
+    select = discord.ui.Select(
+        placeholder="Selecciona qué medicamento has tomado...",
+        min_values=1,
+        max_values=1,
+        options=opciones
+    )
+
+    async def callback_tomado_select(interaction: discord.Interaction):
+        if str(interaction.user.id) != user_id:
+            await interaction.response.send_message("Este menú no es para ti.", ephemeral=True)
+            return
+
+        idx = int(interaction.data["values"][0])
+        med, proxima, diff = candidatos[idx]
+        retraso = (ahora - proxima).total_seconds() / 3600
+
+        if retraso <= VENTANA_MPR_HORAS:
+            estado = "tomada"
+        else:
+            estado = "tomada_con_retraso"
+
+        with get_conn() as conn:
+            toma = conn.execute(
+                """SELECT id FROM tomas WHERE med_id = ? AND estado = 'pendiente'
+                   ORDER BY hora_programada DESC LIMIT 1""",
+                (med["id"],)
+            ).fetchone()
+
+        if toma:
+            actualizar_estado_toma(toma["id"], estado, hora_real=ahora)
+        else:
+            registrar_toma(
+                med_id=med["id"],
+                usuario_id=user_id,
+                hora_programada=proxima,
+                hora_real=ahora,
+                estado=estado
+            )
+
+        for child in view.children:
+            child.disabled = True
+        await interaction.response.edit_message(
+            content=f"✅ Toma de **{med['nombre']}** registrada como **{estado}** a las {ahora.strftime('%H:%M')}.",
+            view=view
+        )
+
+    select.callback = callback_tomado_select
+    view = discord.ui.View(timeout=60)
+    view.add_item(select)
+
+    await ctx.send("¿Qué medicamento has tomado?", view=view)
+
 
 # ══════════════════════════════════════════════════════
 #  INFORME DE ADHERENCIA (paciente)
@@ -662,7 +785,12 @@ class RecordatorioView(discord.ui.View):
 
         ahora         = datetime.now()
         retraso_horas = (ahora - self.hora_programada).total_seconds() / 3600
-        estado        = "tomada" if retraso_horas <= VENTANA_TOLERANCIA_HORAS else "tomada_con_retraso"
+        if retraso_horas <= VENTANA_MPR_HORAS:
+            estado = "tomada"
+        elif retraso_horas <= VENTANA_TOLERANCIA_HORAS:
+            estado = "tomada_con_retraso"
+        else:
+            estado = "tomada_con_retraso"
 
         actualizar_estado_toma(self.toma_id, estado, hora_real=ahora)
         await interaction.response.send_message(
