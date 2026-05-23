@@ -775,14 +775,13 @@ class SeleccionRamView(discord.ui.View):
         seleccion = [self.rams_lista[int(v)] for v in interaction.data["values"]]
 
         if "Ninguno de los anteriores" in seleccion:
-            view = DescripcionRamView(
+            view = OtroSintomaView(
                 user_id=self.user_id,
                 med=self.med,
                 rams_marcadas=[]
             )
             await interaction.response.edit_message(
-                content="Entendido. ¿Quieres describir con tus propias palabras "
-                        "el síntoma que has notado?",
+                content="Entendido. ¿Has notado algún síntoma que quieras describir?",
                 view=view
             )
             return
@@ -807,34 +806,33 @@ class SeleccionRamView(discord.ui.View):
             return
 
         self.seleccion = seleccion
-        view = DescripcionRamView(
+        view = OtroSintomaView(
             user_id=self.user_id,
             med=self.med,
             rams_marcadas=self.seleccion
         )
         await interaction.response.edit_message(
             content=f"✅ Anotado: **{', '.join(self.seleccion)}**\n\n"
-                    f"¿Quieres añadir algo más con tus propias palabras?",
+                    f"¿Has notado algún otro síntoma que no aparece en la lista?",
             view=view
         )
-
-class DescripcionRamView(discord.ui.View):
-    """Tercera pantalla: descripción libre opcional."""
+class OtroSintomaView(discord.ui.View):
+    """Segunda pantalla: ¿Has notado algún otro síntoma?"""
     def __init__(self, user_id: str, med: dict, rams_marcadas: list):
         super().__init__(timeout=86400)
         self.user_id       = user_id
         self.med           = med
         self.rams_marcadas = rams_marcadas
 
-        finalizar_btn = discord.ui.Button(label="✅ Finalizar", style=discord.ButtonStyle.success)
-        finalizar_btn.callback = self.callback_finalizar
-        self.add_item(finalizar_btn)
+        si_btn = discord.ui.Button(label="✅ Sí, tengo otro síntoma", style=discord.ButtonStyle.secondary)
+        si_btn.callback = self.callback_si
+        self.add_item(si_btn)
 
-        descripcion_btn = discord.ui.Button(label="📝 Añadir descripción", style=discord.ButtonStyle.secondary)
-        descripcion_btn.callback = self.callback_descripcion
-        self.add_item(descripcion_btn)
+        no_btn = discord.ui.Button(label="❌ No, finalizar", style=discord.ButtonStyle.success)
+        no_btn.callback = self.callback_no
+        self.add_item(no_btn)
 
-    async def callback_finalizar(self, interaction: discord.Interaction):
+    async def callback_no(self, interaction: discord.Interaction):
         if str(interaction.user.id) != str(self.user_id):
             return
 
@@ -856,14 +854,14 @@ class DescripcionRamView(discord.ui.View):
             view=self
         )
 
-    async def callback_descripcion(self, interaction: discord.Interaction):
+    async def callback_si(self, interaction: discord.Interaction):
         if str(interaction.user.id) != str(self.user_id):
             return
 
         for child in self.children:
             child.disabled = True
         await interaction.response.edit_message(
-            content="📝 Escribe a continuación cómo te has sentido (en un solo mensaje):",
+            content="📝 Escribe a continuación el síntoma adicional (en un solo mensaje):",
             view=self
         )
 
@@ -893,8 +891,7 @@ class DescripcionRamView(discord.ui.View):
                 ephemeral=True
             )
 
-        except Exception as e:
-            print(f"Error en descripcion RAM: {e}")
+        except Exception:
             await interaction.followup.send(
                 "⏰ Tiempo agotado. Si quieres añadir más detalles, "
                 "habla directamente con tu farmacéutico.",
