@@ -118,7 +118,7 @@ def insertar_medicamento(discord_id: str, nombre: str, dosis: str,
 def obtener_medicamentos(discord_id: str) -> list:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM medicamentos WHERE usuario_id = ? AND activo = 1",
+            "SELECT * FROM medicamentos WHERE usuario_id = ? AND (activo = 1 OR activo = 2)",
             (discord_id,)
         ).fetchall()
     return [dict(row) for row in rows]
@@ -347,9 +347,13 @@ async def mismedicamentos(ctx):
 
     mensaje = "📋 **Tus medicamentos registrados:**\n"
     for i, med in enumerate(meds, start=1):
+        if med.get("activo") == 2:
+            estado = " ⚠️ Suspendido por posible alergia"
+        else:
+            estado = ""
         mensaje += (
             f"{i}. **{med['nombre']}** — {med['dosis']} — "
-            f" {med['frecuencia_texto']}\n"
+            f"{med['frecuencia_texto']}{estado}\n"
         )
     await ctx.send(mensaje)
 
@@ -475,11 +479,12 @@ async def revisar_recordatorios():
 
     with get_conn() as conn:
         meds = conn.execute(
-            "SELECT * FROM medicamentos WHERE activo = 1"
+            "SELECT * FROM medicamentos WHERE activo = 1 OR activo = 2"
         ).fetchall()
 
     for med in meds:
         med = dict(med)
+        es_alergia = med.get("activo") == 2
         try:
             inicio = datetime.strptime(med["fecha_inicio"], "%d/%m/%Y %H:%M")
         except ValueError:
@@ -519,6 +524,18 @@ async def revisar_recordatorios():
                     toma_id=toma_id,
                     hora_programada=proxima
                 )
+                if es_alergia:
+                    await usuario.send(
+                        f"⚠️ **Aviso importante** — Tienes una posible reacción alérgica registrada para **{med['nombre']}**.\n"
+                        f"Recuerda hablar con tu farmacéutico o médico antes de continuar tomándolo.\n\n"
+                        f"⏰ Recordatorio: es hora de tomar **{med['nombre']} ({med['dosis']})**",
+                        view=view
+                    )
+                else:
+                    await usuario.send(
+                        f"⏰ Es hora de tomar **{med['nombre']} ({med['dosis']})**",
+                        view=view
+                    )
                 await usuario.send(
                     f"⏰ Es hora de tomar **{med['nombre']} ({med['dosis']})**",
                     view=view
@@ -600,38 +617,6 @@ async def before_encuestas_rams():
     await bot.wait_until_ready()
     import asyncio
     await asyncio.sleep(7 * 24 * 3600)
-
-# ══════════════════════════════════════════════════════
-#  TEST DE ENCUESTA DE RAMs - COMANDO PARA PROBAR RAMs
-# ══════════════════════════════════════════════════════
-
-@bot.command()
-async def testram(ctx):
-    """Comando temporal para probar la encuesta RAM sin esperar 7 días."""
-    user_id = str(ctx.author.id)
-    meds = obtener_medicamentos(user_id)
-    if not meds:
-        await ctx.send("No tienes medicamentos registrados.")
-        return
-    med = meds[0]
-    rams_lista = obtener_rams_medicamento(med["nombre"])
-    view = SeleccionRamView(
-        user_id=user_id,
-        med=med,
-        rams_lista=rams_lista
-    )
-
-    sintomas_texto = "\n".join([f"{i+1}. {r}" for i, r in enumerate(rams_lista)])
-
-
-    await ctx.author.send(
-        f"💊 **Seguimiento semanal — {med['nombre']}**\n\n"
-        f"¿Has notado alguno de estos síntomas esta semana? \n\n{sintomas_texto}",
-        view=view
-    )
-    await ctx.send("✅ Encuesta enviada por DM.")
-
-
 
 # ══════════════════════════════════════════════════════
 #  BOTONES — RECORDATORIO DE TOMA
@@ -757,6 +742,8 @@ class RecordatorioView(discord.ui.View):
 #  BOTONES — ENCUESTA RAM
 # ══════════════════════════════════════════════════════
 
+RAM_ALERGIA = "Reacciones alergicas (picor, urticaria, cara o garganta hinchada, difícil respirar)"
+
 class SeleccionRamView(discord.ui.View):
     """Segunda pantalla: selección de síntomas del medicamento."""
     def __init__(self, user_id: str, med: dict, rams_lista: list):
@@ -795,24 +782,41 @@ class SeleccionRamView(discord.ui.View):
             )
             await interaction.response.edit_message(
                 content="Entendido. ¿Quieres describir con tus propias palabras "
-                        "El sintoma que has notado?",
+                        "el síntoma que has notado?",
                 view=view
             )
             return
-        
+
+        if any("alérgic" in s.lower() or "alergic" in s.lower() for s in seleccion):
+            with get_conn() as conn:
+                conn.execute(
+                    "UPDATE medicamentos SET activo = 2 WHERE id = ?",
+                    (self.med["id"],)
+                )
+                registrar_ram(conn, self.user_id, self.med["id"],
+                             tiene_ram=True, rams_marcadas=seleccion)
+                actualizar_ultima_encuesta(conn, self.user_id, self.med["id"])
+
+            await interaction.response.edit_message(
+                content="⚠️ **Aviso importante — Posible reacción alérgica**\n\n"
+                        "Los síntomas que has descrito podrían indicar una reacción alérgica. "
+                        "Te recomendamos que hables con tu farmacéutico o médico lo antes posible.\n\n"
+                        "El bot seguirá enviando recordatorios con un aviso mientras no consultes a un profesional.",
+                view=discord.ui.View()
+            )
+            return
+
         self.seleccion = seleccion
         view = DescripcionRamView(
             user_id=self.user_id,
             med=self.med,
             rams_marcadas=self.seleccion
         )
-
         await interaction.response.edit_message(
             content=f"✅ Anotado: **{', '.join(self.seleccion)}**\n\n"
                     f"¿Quieres añadir algo más con tus propias palabras?",
             view=view
         )
-
 
 class DescripcionRamView(discord.ui.View):
     """Tercera pantalla: descripción libre opcional."""
@@ -1036,5 +1040,31 @@ async def informe(ctx):
     )
 
     await ctx.send("✅ Informe enviado por DM.")
+
+
+###COMANDO TEMPORAL DE TEST RAM
+@bot.command()
+async def testram(ctx):
+    """Comando temporal para probar la encuesta RAM sin esperar 7 días."""
+    user_id = str(ctx.author.id)
+    meds = obtener_medicamentos(user_id)
+    if not meds:
+        await ctx.send("No tienes medicamentos registrados.")
+        return
+    med = meds[0]
+    rams_lista = obtener_rams_medicamento(med["nombre"])
+    
+    view = SeleccionRamView(
+        user_id=user_id,
+        med=med,
+        rams_lista=rams_lista
+    )
+    sintomas_texto = "\n".join([f"{i+1}. {r}" for i, r in enumerate(rams_lista)])
+    await ctx.author.send(
+        f"💊 **Seguimiento semanal — {med['nombre']}**\n\n"
+        f"¿Has notado alguno de estos síntomas esta semana?\n\n{sintomas_texto}",
+        view=view
+    )
+    await ctx.send("✅ Encuesta enviada por DM.")
 
 bot.run(TOKEN)

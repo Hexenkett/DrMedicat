@@ -43,7 +43,6 @@ DICCIONARIO_RAMS = {
         "Dolor de cabeza",
         "Náuseas o molestias digestivas",
         "Dolor articular",
-        "Reacciones alérgicas cutáneas",
     ],
     "simvastatina": [
         "Dolor o debilidad muscular (mialgia)",
@@ -258,21 +257,7 @@ DICCIONARIO_RAMS = {
 # ══════════════════════════════════════════════════════
 
 def obtener_rams_medicamento(nombre_medicamento: str) -> list[str]:
-    """
-    Devuelve la lista de RAMs a preguntar para un medicamento.
 
-    AHORA: busca en el diccionario local.
-    FUTURO (RAG): consultará la base vectorial con fichas técnicas CIMA.
-
-    Para reemplazar por RAG, solo cambia el contenido de esta función.
-    El resto del sistema (preguntas, registro, informes) no se toca.
-
-    Parámetros:
-        nombre_medicamento → nombre tal como lo registró el usuario
-
-    Devuelve:
-        Lista de strings con las RAMs a preguntar
-    """
     nombre = nombre_medicamento.lower().strip()
 
     # Búsqueda exacta primero
@@ -287,7 +272,10 @@ def obtener_rams_medicamento(nombre_medicamento: str) -> list[str]:
         if rams is None:
             rams = RAMS_GENERICAS
 
-    return rams + ["Ninguno de los anteriores"]
+    return rams + [
+        "Reacciones alergicas (picor, urticaria, cara o garganta hinchada, difícil respirar)",
+        "Ninguno de los anteriores"
+    ]
 
 
 # ══════════════════════════════════════════════════════
