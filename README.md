@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="farmabot_farmiau.png" alt="Dr MediCat" width="180"/>
+  <img src="logo.png" alt="Dr MediCat" width="180"/>
 </p>
 
 <h1 align="center">Dr MediCat — Pharmacotherapeutic Follow-up Chatbot</h1>
